@@ -20,7 +20,6 @@
    By default X-Plane receives user's packets on port 49000 and transmits on 49001. There is a preference to set these ports if they are changed within X-Plane.
    X-Plane also transmits from port 49002 for the FLIR packets but this is obsolete in version 11.50 onwards. There is a preference for the FLIR Packet port.
   */
-#include <config.h>
 
 #if 0
   /* "System" includes used only as needed */
@@ -30,7 +29,11 @@
 ...
 #endif
 
-#include <epan/packet.h>   /* Should be first Wireshark include (other than config.h) */
+#ifndef WS_BUILD_DLL
+#define WS_BUILD_DLL
+#endif
+#include <wireshark.h>
+#include <epan/packet.h>   
 #include <epan/prefs.h>
 #include <epan/unit_strings.h>
 #include <epan/expert.h>
@@ -39,6 +42,16 @@
 #include <wsutil/plugins.h>
 #include <wsutil/str_util.h>
 #include <wsutil/wmem/wmem_strbuf.h>
+
+#ifndef VERSION
+#define VERSION "2.0.0"
+#endif
+
+WS_DLL_PUBLIC_DEF const gchar plugin_version[] = VERSION;
+WS_DLL_PUBLIC_DEF const int plugin_want_major = WIRESHARK_VERSION_MAJOR;
+WS_DLL_PUBLIC_DEF const int plugin_want_minor = WIRESHARK_VERSION_MINOR;
+
+WS_DLL_PUBLIC void plugin_register(void);
 
 /* Prototypes */
 /* (Required to prevent [-Wmissing-prototypes] warnings */
@@ -1611,7 +1624,7 @@ static int dissect_xplane_acfn(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     {
         tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
         proto_item* id_item = proto_tree_add_item_ret_int(xplane_acfn_tree, hf_xplane_acfn_index, tvb_content, 0, 4, ENC_LITTLE_ENDIAN, &id);
-        proto_item* path_item = proto_tree_add_item_ret_string(xplane_acfn_tree, hf_xplane_acfn_path, tvb_content, 4, 150, ENC_ASCII, wmem_packet_scope(), &path);
+        proto_item* path_item = proto_tree_add_item_ret_string(xplane_acfn_tree, hf_xplane_acfn_path, tvb_content, 4, 150, ENC_ASCII, pinfo->pool, &path);
         proto_tree_add_item(xplane_acfn_tree, hf_xplane_acfn_padding, tvb_content, 154, 2, ENC_ASCII);
         proto_item* livery_item = proto_tree_add_item_ret_int(xplane_acfn_tree, hf_xplane_acfn_livery, tvb_content, 156, 4, ENC_LITTLE_ENDIAN, &livery);
 
@@ -1648,7 +1661,7 @@ static int dissect_xplane_acpr(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     {
         tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
         proto_item* id_item = proto_tree_add_item_ret_int(xplane_acpr_tree, hf_xplane_acpr_index, tvb_content, 0, 4, ENC_LITTLE_ENDIAN, &id);
-        proto_item* path_item = proto_tree_add_item_ret_string(xplane_acpr_tree, hf_xplane_acpr_path, tvb_content, 4, 150, ENC_ASCII, wmem_packet_scope(), &path);
+        proto_item* path_item = proto_tree_add_item_ret_string(xplane_acpr_tree, hf_xplane_acpr_path, tvb_content, 4, 150, ENC_ASCII, pinfo->pool, &path);
         proto_tree_add_item(xplane_acpr_tree, hf_xplane_acpr_padding, tvb_content, 154, 2, ENC_LITTLE_ENDIAN);
         proto_item* livery_item = proto_tree_add_item_ret_int(xplane_acpr_tree, hf_xplane_acpr_livery, tvb_content, 156, 4, ENC_LITTLE_ENDIAN, &livery);
         proto_tree_add_item(xplane_acpr_tree, hf_xplane_acpr_starttype, tvb_content, 160, 4, ENC_LITTLE_ENDIAN);
@@ -1737,7 +1750,7 @@ static int dissect_xplane_becn(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     proto_tree_add_item(xplane_becn_tree, hf_xplane_becn_version, tvb_content, 6, 4, ENC_LITTLE_ENDIAN);
     proto_tree_add_item(xplane_becn_tree, hf_xplane_becn_role, tvb_content, 10, 4, ENC_LITTLE_ENDIAN);
     proto_tree_add_item(xplane_becn_tree, hf_xplane_becn_port, tvb_content, 14, 2, ENC_LITTLE_ENDIAN);
-    proto_tree_add_item_ret_string_and_length(xplane_becn_tree, hf_xplane_becn_name, tvb_content, 16, -1, ENC_ASCII, wmem_packet_scope(), &becn_name, &becn_name_length);
+    proto_tree_add_item_ret_string_and_length(xplane_becn_tree, hf_xplane_becn_name, tvb_content, 16, -1, ENC_ASCII, pinfo->pool, &becn_name, &becn_name_length);
     if (major == 1 && minor == 2)
     {
         proto_tree_add_item(xplane_becn_tree, hf_xplane_becn_raknetport, tvb_content, 16 + becn_name_length, 2, ENC_LITTLE_ENDIAN);
@@ -1760,7 +1773,7 @@ static int dissect_xplane_cmnd(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     proto_tree_add_item(xplane_cmnd_tree, hf_xplane_cmnd_header, tvb, 0, 4, ENC_ASCII);
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
-    proto_tree_add_item_ret_string(xplane_cmnd_tree, hf_xplane_cmnd_command, tvb_content, 0, -1, ENC_ASCII, wmem_packet_scope(), &cmnd_name);
+    proto_tree_add_item_ret_string(xplane_cmnd_tree, hf_xplane_cmnd_command, tvb_content, 0, -1, ENC_ASCII, pinfo->pool, &cmnd_name);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Cmnd=%s", cmnd_name);
 
@@ -1879,7 +1892,7 @@ static int dissect_xplane_dref(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     {
         tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
         proto_tree_add_item(xplane_dref_tree, hf_xplane_dref_value, tvb_content, 0, 4, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item_ret_string(xplane_dref_tree, hf_xplane_dref_dataref, tvb_content, 4, -1, ENC_ASCII, wmem_packet_scope(), &dref);
+        proto_tree_add_item_ret_string(xplane_dref_tree, hf_xplane_dref_dataref, tvb_content, 4, -1, ENC_ASCII, pinfo->pool, &dref);
 
         col_append_fstr(pinfo->cinfo, COL_INFO, " DRef=%s", dref);
     }
@@ -1929,7 +1942,7 @@ static int dissect_xplane_fail(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     proto_tree_add_item(xplane_fail_tree, hf_xplane_fail_header, tvb, 0, 4, ENC_ASCII);
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
-    proto_tree_add_item_ret_string(xplane_fail_tree, hf_xplane_fail_id, tvb_content, 0, -1, ENC_ASCII, wmem_packet_scope(), &systemid);
+    proto_tree_add_item_ret_string(xplane_fail_tree, hf_xplane_fail_id, tvb_content, 0, -1, ENC_ASCII, pinfo->pool, &systemid);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Id=%s", systemid);
 
@@ -1948,7 +1961,7 @@ static int dissect_xplane_flir_in(tvbuff_t* tvb, packet_info* pinfo, proto_tree*
     proto_tree_add_item(xplane_flir_in_tree, hf_xplane_flir_in_header, tvb, 0, 4, ENC_ASCII);
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
-    proto_tree_add_item_ret_string(xplane_flir_in_tree, hf_xplane_flir_in_framerate, tvb_content, 0, -1, ENC_ASCII, wmem_packet_scope(), &framerate);
+    proto_tree_add_item_ret_string(xplane_flir_in_tree, hf_xplane_flir_in_framerate, tvb_content, 0, -1, ENC_ASCII, pinfo->pool, &framerate);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Framerate=%s", framerate);
 
@@ -2051,7 +2064,7 @@ static int dissect_xplane_lsnd(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
         proto_tree_add_item_ret_int(xplane_lsnd_tree, hf_xplane_lsnd_index, tvb_content, 0, 4, ENC_LITTLE_ENDIAN, &index);
         proto_tree_add_item(xplane_lsnd_tree, hf_xplane_lsnd_speed, tvb_content, 4, 4, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(xplane_lsnd_tree, hf_xplane_lsnd_volume, tvb_content, 8, 4, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item_ret_string(xplane_lsnd_tree, hf_xplane_lsnd_filename, tvb_content, 12, -1, ENC_ASCII, wmem_packet_scope(), &filename);
+        proto_tree_add_item_ret_string(xplane_lsnd_tree, hf_xplane_lsnd_filename, tvb_content, 12, -1, ENC_ASCII, pinfo->pool, &filename);
         col_append_fstr(pinfo->cinfo, COL_INFO, " Index=%u Filename=%s", index, filename);
 
         gfloat frequency = tvb_get_ieee_float(tvb_content, 4, ENC_LITTLE_ENDIAN);
@@ -2079,7 +2092,7 @@ static int dissect_xplane_nfal(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     proto_tree_add_item(xplane_nfal_tree, hf_xplane_nfal_header, tvb, 0, 4, ENC_ASCII);
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
-    proto_tree_add_item_ret_string(xplane_nfal_tree, hf_xplane_nfal_navaidcode, tvb_content, 0, -1, ENC_ASCII, wmem_packet_scope(), &navaid);
+    proto_tree_add_item_ret_string(xplane_nfal_tree, hf_xplane_nfal_navaidcode, tvb_content, 0, -1, ENC_ASCII, pinfo->pool, &navaid);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Navaid=%s", navaid);
 
@@ -2101,7 +2114,7 @@ static int dissect_xplane_nrec(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     proto_tree_add_item(xplane_nrec_tree, hf_xplane_nrec_header, tvb, 0, 4, ENC_ASCII);
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
-    proto_tree_add_item_ret_string(xplane_nrec_tree, hf_xplane_nrec_navaidcode, tvb_content, 0, -1, ENC_ASCII, wmem_packet_scope(), &navaid);
+    proto_tree_add_item_ret_string(xplane_nrec_tree, hf_xplane_nrec_navaidcode, tvb_content, 0, -1, ENC_ASCII, pinfo->pool, &navaid);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Navaid=%s", navaid);
 
@@ -2193,7 +2206,7 @@ static int dissect_xplane_objn(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     {
         tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
         proto_tree_add_item_ret_int(xplane_objn_tree, hf_xplane_objn_index, tvb_content, 0, 4, ENC_LITTLE_ENDIAN, &id);
-        proto_tree_add_item_ret_string(xplane_objn_tree, hf_xplane_objn_filename, tvb_content, 4, -1, ENC_ASCII, wmem_packet_scope(), &filename);
+        proto_tree_add_item_ret_string(xplane_objn_tree, hf_xplane_objn_filename, tvb_content, 4, -1, ENC_ASCII, pinfo->pool, &filename);
 
         col_append_fstr(pinfo->cinfo, COL_INFO, " Id=%d Filename=%s", id, filename);
     }
@@ -2279,7 +2292,7 @@ static int dissect_xplane_radr_in(tvbuff_t* tvb, packet_info* pinfo, proto_tree*
     proto_tree_add_item(xplane_radr_in_tree, hf_xplane_radr_in_header, tvb, 0, 4, ENC_ASCII);
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
-    proto_tree_add_item_ret_string(xplane_radr_in_tree, hf_xplane_radr_in_pointcount, tvb_content, 0, -1, ENC_ASCII, wmem_packet_scope(), &pointcount);
+    proto_tree_add_item_ret_string(xplane_radr_in_tree, hf_xplane_radr_in_pointcount, tvb_content, 0, -1, ENC_ASCII, pinfo->pool, &pointcount);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Points=%s", pointcount);
 
@@ -2361,7 +2374,7 @@ static int dissect_xplane_rpos_in(tvbuff_t* tvb, packet_info* pinfo, proto_tree*
     proto_tree_add_item(xplane_rpos_tree, hf_xplane_rpos_in_header, tvb, 0, 4, ENC_ASCII);
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
-    proto_tree_add_item_ret_string(xplane_rpos_tree, hf_xplane_rpos_in_frequency, tvb_content, 0, -1, ENC_ASCII, wmem_packet_scope(), &frequency);
+    proto_tree_add_item_ret_string(xplane_rpos_tree, hf_xplane_rpos_in_frequency, tvb_content, 0, -1, ENC_ASCII, pinfo->pool, &frequency);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Frequency=%s", frequency);
 
@@ -2481,7 +2494,7 @@ static int dissect_xplane_simo(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
 
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
     proto_tree_add_item_ret_int(xplane_simo_tree, hf_xplane_simo_action, tvb_content, 0, 4, ENC_LITTLE_ENDIAN, &action);
-    proto_tree_add_item_ret_string(xplane_simo_tree, hf_xplane_simo_filename, tvb_content, 4, -1, ENC_ASCII, wmem_packet_scope(), &filename);
+    proto_tree_add_item_ret_string(xplane_simo_tree, hf_xplane_simo_filename, tvb_content, 4, -1, ENC_ASCII, pinfo->pool, &filename);
 
     if (action < 0 || action > 3)
         expert_add_info_format(pinfo, xplane_simo_item, &ei_xplane_simo_actionid, "Possible Invalid Action ID %u. Valid Actions ID's are 0->3", action);
@@ -2505,7 +2518,7 @@ static int dissect_xplane_soun(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
     tvbuff_t* tvb_content = tvb_new_subset_length(tvb, xplane_HEADER_LENGTH, -1);
     proto_tree_add_item(xplane_soun_tree, hf_xplane_soun_frequency, tvb_content, 0, 4, ENC_LITTLE_ENDIAN);
     proto_tree_add_item(xplane_soun_tree, hf_xplane_soun_volume, tvb_content, 4, 4, ENC_LITTLE_ENDIAN);
-    proto_tree_add_item_ret_string(xplane_soun_tree, hf_xplane_soun_filename, tvb_content, 8, -1, ENC_ASCII, wmem_packet_scope(), &filename);
+    proto_tree_add_item_ret_string(xplane_soun_tree, hf_xplane_soun_filename, tvb_content, 8, -1, ENC_ASCII, pinfo->pool, &filename);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " Filename=%s", filename);
 
@@ -2542,7 +2555,7 @@ static int dissect_xplane_ssnd(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tr
         proto_tree_add_item_ret_int(xplane_ssnd_tree, hf_xplane_ssnd_index, tvb_content, 0, 4, ENC_LITTLE_ENDIAN, &index);
         proto_tree_add_item(xplane_ssnd_tree, hf_xplane_ssnd_speed, tvb_content, 4, 4, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(xplane_ssnd_tree, hf_xplane_ssnd_volume, tvb_content, 8, 4, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item_ret_string(xplane_ssnd_tree, hf_xplane_ssnd_filename, tvb_content, 12, -1, ENC_ASCII, wmem_packet_scope(), &filename);
+        proto_tree_add_item_ret_string(xplane_ssnd_tree, hf_xplane_ssnd_filename, tvb_content, 12, -1, ENC_ASCII, pinfo->pool, &filename);
 
         col_append_fstr(pinfo->cinfo, COL_INFO, " Index=%d Filename=%s", index, filename);
 
@@ -2673,9 +2686,9 @@ static int dissect_xplane_vehx(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tree
     return tvb_captured_length(tvb);
 }
 
-static gboolean validate_header(tvbuff_t* tvb)
+static gboolean validate_header(tvbuff_t* tvb, packet_info* pinfo)
 {
-    guint8* bytes = tvb_get_string_enc(wmem_packet_scope(), tvb, 0, 4, ENC_ASCII | ENC_NA);
+    guint8* bytes = tvb_get_string_enc(pinfo->pool, tvb, 0, 4, ENC_ASCII | ENC_NA);
 
     return ((g_ascii_strncasecmp(bytes, "ACFN", 4) == 0) ||
         (g_ascii_strncasecmp(bytes, "ACPR", 4) == 0) ||
@@ -2717,11 +2730,11 @@ static int dissect_xplane(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, v
         return 0;
 
     // If we don't recognise the header don't process it.
-    if (!validate_header(tvb))
+    if (!validate_header(tvb, pinfo))
         return 0;
 
-    guint8* bytes = tvb_get_string_enc(wmem_packet_scope(), tvb, 0, 4, ENC_ASCII | ENC_NA);
-    gchar* bytes_lower = wmem_ascii_strdown(wmem_packet_scope(), bytes, 4);
+    guint8* bytes = tvb_get_string_enc(pinfo->pool, tvb, 0, 4, ENC_ASCII | ENC_NA);
+    gchar* bytes_lower = wmem_ascii_strdown(pinfo->pool, bytes, 4);
 
     col_clear(pinfo->cinfo, COL_PROTOCOL);
     col_add_fstr(pinfo->cinfo, COL_PROTOCOL, "xplane.%s", bytes_lower);
@@ -3332,6 +3345,13 @@ void proto_reg_handoff_xplane(void)
     dissector_add_uint("udp.port", current_becn_port, xplane_becn_handle);
 }
 
+void plugin_register(void)
+{
+    static proto_plugin plug;
+    plug.register_protoinfo = proto_register_xplane;
+    plug.register_handoff = proto_reg_handoff_xplane;
+    proto_register_plugin(&plug);
+}
 /*
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html
  *

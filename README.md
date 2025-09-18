@@ -7,13 +7,19 @@ To build Wireshark refer to these resources:
 * Windows: https://www.wireshark.org/docs/wsdg_html_chunked/ChSetupWin32.html
 * Linux: https://gist.github.com/syneart/2d30c075c140624b1e150c8ea318a978  
 
-There are 2 options for integrating an X-Plane dissector into Wireshark:
-* As a plugin (quickest recompile during development)
-  * Copy <code>packet-xplane.c</code> and <code>CMakeLists.txt</code> into <code>wireshark\private_plugins\xplane</code>
+There are 3 options for integrating an X-Plane dissector into Wireshark:
+* As a plugin outside the Wireshark tree (quickest recompile during development, works on Linux only)
+  * If necessary, after building Wireshark, run <code>sudo ninja install-headers</code>
+  * From this repository directory, run <code> mkdir build && cd build </code>
+  * Run <code>cmake ..</code>
+  * Run <code>make</code>
+  * Run <code>sudo make install</code>
+* As a plugin inside the Wireshark tree
+  * Copy <code>packet-xplane.c</code> into <code>wireshark\private_plugins\xplane</code>
+  * Copy <code>CMakeLists.txt.intree</code> to <code>wireshark\private_plugins\xplane\CMakeLists.txt</code>
   * Copy <code>wireshark\CMakeListsCustom.txt.example</code> to <code>wireshark\CMakeListsCustom.txt</code>
   * Edit <code>wireshark\CMakeListsCustom.txt</code> and change <code>private_plugins/foo</code> to <code>private_plugins/xplane</code> and uncomment the line
   * Rerun from the cmake step.
-
 * Within the main libwireshark.dll dissector library
   * Copy <code>packet-xplane.c</code> into <code>wireshark\epan\dissectors</code>
   * Copy <code>wireshark\epan\dissectors\CMakeListsCustom.txt.example</code> to <code>wireshark\epan\dissectors\CMakeListsCustom.txt</code>
