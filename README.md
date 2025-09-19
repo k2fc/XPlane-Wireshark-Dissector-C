@@ -5,11 +5,11 @@
 
 To build Wireshark refer to these resources:
 * Windows: https://www.wireshark.org/docs/wsdg_html_chunked/ChSetupWin32.html
-* Linux: https://gist.github.com/syneart/2d30c075c140624b1e150c8ea318a978  
+* Linux: https://www.wireshark.org/docs/wsdg_html_chunked/ChapterSetup#ChSetupUNIX
 
 There are 3 options for integrating an X-Plane dissector into Wireshark:
 * As a plugin outside the Wireshark tree (quickest recompile during development, works on Linux only)
-  * If necessary, after building Wireshark, run <code>sudo ninja install-headers</code>
+  * If necessary, after building Wireshark, run <code>sudo ninja install-headers</code> or <code>sudo make install-headers</code>, depending on how you built Wireshark.
   * From this repository directory, run <code> mkdir build && cd build </code>
   * Run <code>cmake ..</code>
   * Run <code>make</code>
